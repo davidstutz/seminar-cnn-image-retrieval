@@ -1,0 +1,43 @@
+\section{Neural Codes for Image Retrieval}
+\label{sec:neural-codes-image-retrieval}
+
+As discussed in \cite{Bengio:2009}, convolutional neural networks tend to learn useful high- and mid-level filters and the generated activations are rich representations of image content. Therefore, convolutional neural networks have been applied to many different tasks. Babenko \etal \cite{BabenkoSlesarevChigorinLempitsky:2014} use the generated feature activations as image representation for image retrieval. The resulting image representations are also termed neural codes.
+
+\subsection{Architecture, Training and Implementation}
+
+According to Babenko \etal, the same architecture as presented in Section \ref{subsec:architectures} was used together with an adapted version of the original implementation by Krizhevsky \cite{KrizhevskySutskeverHinton:2012} \etal.
+Experiments were conducted using a model pre-trained on the ImageNet dataset \cite{DengDongSocherLiLiLi:2009} and a model re-trained on a custom dataset consisting of popular landmarks (referred to as the Landmark dataset).
+The dataset comprises $213,678$ images with $672$ classes (corresponding to the different landmarks) and was collected using the Yandex search engine
+\footnote{
+    See \url{https://www.yandex.com/}.
+}.
+Although, the search queries have been published
+\footnote{
+    Available at \url{http://sites.skoltech.ru/compvision/projects/neuralcodes} (in Russian).
+}, the dataset is not directly reproducible. Furthermore, the implementation has not been made publicly available.
+
+Training is done according to \cite{KrizhevskySutskeverHinton:2012}, see Section \ref{subsec:training}, using stochastic gradient descent with a momentum parameter $\nu = 0.9$ and weight decay with $\lambda = 0.0005$. The learning rate is initialized with $\gamma = 0.01$ and manually divided by $10$ whenever the error on a validation set stops decreasing. As Babenko \etal do not mention deviations from this procedure, we assume that the same approach was used for the re-trained model.
+
+\subsection{Compression}
+\label{subsec:compression}
+
+The feature activations in intermediate layers may be quite high-dimensional. Thus, Babenko \etal \cite{BabenkoSlesarevChigorinLempitsky:2014} experiment with two different approaches for dimensionality reduction: \textbf{PCA} and metric learning following the idea of \cite{SimonyanParkhiVedaldiZisserman:2013}.
+
+\vskip 6px
+\textbf{Large-Margin Dimensionality Reduction} \cite{SimonyanParkhiVedaldiZisserman:2013}. Babenko \etal collect a dataset of $100k$ image pairs from the Landmark dataset using a simple image matching system (\textbf{SIFT} matching with Lowe's ratio test \cite{Lowe:2004} and \textbf{RANSAC} validation). The goal is to learn a linear dimensionality reduction $P \in \mathbb{R}^{C' \times C}$ such that the distance of matching image pairs is below a learned threshold $b$ while the distance of non-matching pairs is above this threshold. This can be formalized by the constraint
+\begin{align}
+    t_{n,n'} \left(b - d(P x_n, P x_{n'})^2\right) > 1
+\end{align}
+where $t_{n,n'} = 1$ if and only if the image pair $(x_n, x_{n'})$ is a matching pair. This can be accomplished by minimizing 
+\begin{align}
+    E(P) = \sum_{n,n'}^N \max\{0, 1 - t_{n,n'}\left(b - (x_n - x_{n'})^T P^T P (x_n - x_{n'})\right)\}
+\end{align}
+using stochastic gradient descent. In particular, given a sampled pair of image representations $(x_n, x_{n'})$ the dimensionality reduction $P[\tau]$ in iteration $\tau$ is updated only if
+\begin{align}
+    t_{n,n'} \left(b - (x_n - x_{n'})^T P[\tau]^T P[\tau] (x_n - x_{n'})\right) > 1
+\end{align}
+and according to
+\begin{align}
+	P[\tau + 1] = P[\tau] - \gamma  t_{n,n'} P[\tau] (x_n - x_{n'})(x_n - x_{n'})^T
+\end{align}
+where $\gamma$ is the learning rate. Instead of an additional regularization term, Simonyan \etal use early stopping, that is minimization is stopped after a pre-defined number of iterations. Positive and negative pairs are sampled with equal probability.

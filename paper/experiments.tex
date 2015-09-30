@@ -1,0 +1,108 @@
+\section{Experiments}
+\label{sec:experiments}
+
+In this section, we discuss several experiments presented by Babenko \etal \cite{BabenkoSlesarevChigorinLempitsky:2014}. However, first we introduce popular datasets and the general evaluation methodology employed in the image retrieval community.
+
+\subsection{Datasets}
+
+There are several commonly used datasets available within the image retrieval community.
+% Note that the evaluation methodology may differ between datasets.
+We briefly discuss two datasets used for evaluation of many approaches discussed in Section \ref{subsubsubsec:local-descriptors}.
+% TODO: links to datasets.
+\vskip 6px
+\textbf{Oxford 5k (+100k, +1M)} \cite{PhilbinChumIsardSivicZisserman:2007}. The Oxford dataset consists of $5,062$ images showing eleven different Oxford landmarks. The images were retrieved from Flickr
+\footnote{
+    See \url{https://www.flickr.com/}.
+} by querying directly for these landmarks and adding several distractor images using the query ``Oxford'' alone. For each landmark five queries are provided and for each query, four different lists are available: ``Good'', that is the queried object is visible in the image; ``Ok'', that is most of the object (more than $25\%$) is visible; ``Junk'', that is the object is heavily occluded (less than $25\%$ visible); and ``Absent'', that is the object is not shown in the image. Furthermore, two set of distractor images are provided: $99,782$ images from the $145$ most popular tags on Flickr (+100k); and  $1,040,801$ images from the $450$ most popular tags on Flickr (+1M). Duplicates with the original 5k datasets have been removed.
+
+\vskip 6px
+\textbf{INRIA Holidays} \cite{JegouDouzeSchmid:2008}. The dataset comprises $1,491$ personal holiday images and comes with $500$ distinct queries including ground truth results. Some of the images were taken explicitly to test the system against illumination changes and viewpoint changes. However, Babenko \etal manually bring all images in the correct orientation.
+
+%\vskip 6px
+%\textbf{University of Kentucky Dataset} \cite{NisterStewenius:2006}. The dataset contains $2,550$ objects with $4$ images per object. Each image can be used as query and performance is measures as fraction of correct retrieval results in the top-4 images.
+
+\subsection{Mean Average Precision}
+
+Performance evaluation is usually based on a fixed number $K$ of retrieved images per query. Given a query $z_0$ and retrieved images $Z = (z_1,\ldots,z_K)$, we define:
+
+\vskip 6px
+\textbf{True Positives} $TP$: the number of images retrieved that are relevant to the query (that is, show the same object or scene);\\
+\textbf{False Positives} $FP$: the number of images retrieved that are not relevant to the query;\\
+\textbf{False Negatives} $TN$: the number of images which are relevant to the query but not retrieved.
+\vskip 6px
+
+Then, Precision and Recall are given as
+\begin{align}
+    \text{Pre}(Z) = \frac{TP}{TP + FP}\quad\text{ and }\quad \text{Rec}(Z) = \frac{TP}{TP + FN}.
+\end{align}
+The Precision-Recall curve is a common instrument to visualize and understand the performance of a retrieval systems. Furthermore, this curve can be summarized in a single value: Average Precision which can be interpreted as the area under the curve. Let $\text{Pre}_k(Z)$ and $\text{Rec}_k(Z)$ be Precision and Recall up to the $k$-th retrieved image, respectively. Then, Average Precision is computed as
+\footnote{
+    See the provided source code at \url{http://www.robots.ox.ac.uk/~vgg/data/oxbuildings/}.
+}
+\begin{align}
+    \text{AP}(Z) = \sum_{k = 1}^K (\text{Rec}_k(Z) - \text{Rec}_{k-1}(Z))\frac{(\text{Pre}_{k-1}(Z) + \text{Pre}_k(Z))}{2}
+\end{align}
+with $\text{Rec}_0(Z) = 0$ and $\text{Pre}_0(Z) = 1$. The Mean Average Precision is calculated to report the performance over a set of queries.
+
+\subsection{Results}
+
+As Babenko \etal do not provide the used implementation or the Landmark dataset, we were not able to reproduce their experimental results. Therefore, Table \ref{table:pre-re-trained} summarizes results reported in \cite{BabenkoSlesarevChigorinLempitsky:2014}. In particular, they experiment with three distinct layers for image representation: $y^{(15)}$ corresponds to the last convolutional layer including the subsequent non-linearity layer and max pooling layer; $y^{(16)}$ and $y^{(17)}$ correspond to the first and second fully connected layer. On the Oxford 5k dataset, the pre-trained model shows poor performance and the re-trained model is not able to cope with the approach by J{\'e}gou and Zisserman \cite{JegouZisserman:2014}. In contrast, both the pre-trained model and the re-trained model demonstrate state-of-the-art performance on the Holidays dataset. Further, we see that layer $16$ performs best.
+% Babenko \etal argue that this might be due to the fact that the last layers are increasingly tuned towards the classification task.
+
+As discussed in Section \ref{subsec:compression}, Babenko \etal experiment with \textbf{PCA} and Large-Margin Dimensionality Reduction and Table \ref{table:compression} shows the corresponding results. On both the Oxford 5k dataset and the Holidays dataset, the feature activations seem to be more robust to dimensionality reduction. Compared to the other approaches, also using \textbf{PCA} for dimensionality reduction, the compressed re-trained feature activations show significantly better performance. However, we also note that Large-Margin Dimensionality Reduction does not show a significant advantage over \textbf{PCA}. Lastly, figure \ref{fig:qualitative} shows two retrieval examples.
+
+\begin{SCtable}[2][t]
+    \centering
+    {
+    \footnotesize
+    \def\arraystretch{1.1}
+    \begin{tabular}{| l | r | r |}
+        \hline
+        & Oxford 5k & Holidays\\\hline
+        \cite{GordoSerranoPerronninValveny:2012} & -- & 0.774\\
+        \cite{ArandjelovicZisserman:2013} & 0.555 & 0.646\\
+        \cite{GeKeSun:2013} & -- & 0.767\\
+        \cite{JegouZisserman:2014} & 0.676 & 0.771\\\hline
+        \multicolumn{3}{| c |}{\textbf{Pre-Trained on ImageNet \cite{DengDongSocherLiLiLi:2009}}}\\\hline
+        $y^{(15)}$ & 0.389 & 0.69\\
+        $y^{(16)}$ & 0.435 & 0.749\\
+        $y^{(17)}$ & 0.430 & 0.736\\\hline
+        \multicolumn{3}{| c |}{\textbf{Re-Trained}}\\\hline
+        $y^{(15)}$ & 0.387 & 0.674\\
+        $y^{(16)}$ & 0.545 & 0.793\\
+        $y^{(17)}$ & 0.538 & 0.764\\\hline
+    \end{tabular}
+    }
+    \caption{Mean average precision for the Oxford 5k dataset and the Holidays dataset. Using the notation from Section \ref{sec:convolutional-neural-networks}, Babenko \etal use $y^{(17)}$, $y^{(16)}$ and $y^{(15)}$ as image representations. These layer correspond to the second and first fully connected layers, each with dimension $C = 4096$, and the last convolutional layer including non-linearity layer and max pooling layer, resulting in $C = 9216$. The results are compared to the following approaches: Gordo \etal \cite{GordoSerranoPerronninValveny:2012} use Fisher Vectors on densily extracted \textbf{SIFT} descriptors; Arandjelovi{\'c} and Zisserman \cite{ArandjelovicZisserman:2013} use \textbf{VLAD} with intra-normalization; Ge \etal \cite{GeKeSun:2013} use sparse-coding to combine \textbf{SIFT}, \textbf{DAISY} \cite{TolaLepetitFua:2008} and Sparse-Coded Micro Features; and J{\'e}gou and Zisserman \cite{JegouZisserman:2014} use Triangulation Embedding and Democratic Aggregation.}
+    \label{table:pre-re-trained}
+\end{SCtable}
+
+\begin{SCtable}[2][b]
+    \centering
+    {
+    \footnotesize
+    \def\arraystretch{1.1}
+    \begin{tabular}{| l | r | r |}
+        \hline
+        & Oxford 5k & Holidays\\\hline
+        \cite{GordoSerranoPerronninValveny:2012} & -- & 0.723\\
+        \cite{GordoSerranoPerronninValveny:2012}* & -- & 0.764\\
+        \cite{ArandjelovicZisserman:2013} & 0.448 & 0.625\\
+        \cite{GeKeSun:2013} & -- & 0.727\\
+        \cite{JegouZisserman:2014} & 0.433 & 0.617\\\hline
+        \multicolumn{3}{| c |}{\textbf{Pre-Trained on ImageNet \cite{DengDongSocherLiLiLi:2009}}}\\\hline
+        $y^{(16)}$ (\textbf{PCA}) & 0.433 & 0.747\\
+        $y^{(16)}$ (Large-Margin) & 0.439 & --\\\hline
+        \multicolumn{3}{| c |}{\textbf{Re-Trained}}\\\hline
+        $y^{(16)}$ (\textbf{PCA})& 0.557 & 0.789\\
+        \hline
+    \end{tabular}
+    }
+    \caption{Mean average precision for the Oxford 5k dataset and the Holidays dataset using $128$ dimensional image representations. Babenko \etal use layer $y^{(16)}$ (as it experimentally yields the best results) compressed to $128$ dimensions using \textbf{PCA} and Large-Margin Dimensionality Reduction. The other approaches have been compressed as discussed in the corresponding publications: Gordo \etal \cite{GordoSerranoPerronninValveny:2012} use \textbf{PCA} and Joint Subspace and Classifier Learning (marked with *); Arandjelovi{\'c} and Zisserman \cite{ArandjelovicZisserman:2013} use \textbf{PCA}; Ge \etal \cite{GeKeSun:2013} use \textbf{PCA}; and J{\'e}gou and Zisserman \cite{JegouZisserman:2014} use power-law normalization after \textbf{PCA} rotation and subsequently keep the first $128$ dimensions (see \cite{JegouZisserman:2014} for details).}
+    \label{table:compression}
+\end{SCtable}
+
+\subsection{Discussion}
+
+The experiments by Babenko \etal raise several questions. First of all, the choice of layer is only justified experimentally and the re-trained convolutional neural network has been trained towards the classification task, as well. Only in the conclusion, Babenko \etal consider training the network directly on image pairs. Second, Large-Margin Dimensionality Reduction has not been demonstrated on the re-trained neural network. As the approach does not demonstrate any significant increase in performance over \textbf{PCA} on the pre-trained model, this may imply that discriminative dimensionality reduction does not work well for convolutional neural networks. However, we note that Gordo \etal are able to significantly increase performance using Joint Subspace and Classifier Learning -- a comparison not available in \cite{BabenkoSlesarevChigorinLempitsky:2014}. Finally, results for the compared approaches shown in Tables \ref{table:pre-re-trained} and \ref{table:compression} are taken from the corresponding publications and Babenko \etal do not discuss the used evaluation pipeline in detail such that the reported results may not be comparable.
+% The experiments by Babenko \etal \cite{BabenkoSlesarevChigorinLempitsky:2014} show mixed results. While the re-trained convolutional neural network demonstrates excellent performance on the Holidays dataset, results on the Oxford 5k dataset are not able to cope with the state-of-the-art (that is \cite{JegouZisserman:2014}). In contrast, feature activations from convolutional neural networks seem to be more robust to \textbf{PCA} compression (at least compared to \cite{GordoSerranoPerronninValveny:2012,ArandjelovicZisserman:2013,GeKeSun:2013} also using \textbf{PCA}). Furthermore, Babenko \etal argue that the last layers of a convolutional neural network are tuned towards the classification task justifying the use of intermediate layers for image representation. However, this has only been shown experimentally and the compression of additional intermediate layers has not been considered. In addition, the re-trained convolutional neural network has specificly been trained on a classification task, as well. Only in their conclusion, Babenko \etal consider training the convolutional neural network directly on image pairs \cite{BabenkoSlesarevChigorinLempitsky:2014}.

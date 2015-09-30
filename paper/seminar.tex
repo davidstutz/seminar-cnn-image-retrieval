@@ -1,0 +1,99 @@
+\documentclass[twoside,a4paper,article]{combine}
+
+\usepackage[latin1]{inputenc}
+\usepackage{a4}
+\usepackage{fancyhdr}   
+\usepackage{makeidx}
+\usepackage{color}
+\usepackage{t1enc}
+\usepackage{latexsym}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{subfigure}
+
+\usepackage{graphicx}
+\usepackage{pslatex}
+\usepackage{ifthen}
+
+\usepackage[T1]{fontenc}
+\usepackage{pslatex}
+
+\usepackage{psfrag}
+\usepackage{url}
+
+\usepackage{enumerate}
+\usepackage{amsmath}
+
+\usepackage{ntheorem}
+\theoremstyle{break}
+\newtheorem{algorithm}{Algorithm}[section] 
+
+\usepackage[font={small}]{caption}
+\usepackage{paralist}
+\usepackage{sidecap}
+\usepackage{subfigure}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usetikzlibrary{fadings}
+
+\usepackage{titlesec}
+\usepackage{titling}
+
+\setcounter{secnumdepth}{4}
+
+\titleformat{\paragraph}
+{\normalfont\normalsize\bfseries}{\theparagraph}{1em}{}
+\titlespacing*{\paragraph}
+{0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+
+\setlength{\oddsidemargin}{3.6pt}
+\setlength{\evensidemargin}{22.6pt}
+\setlength{\textwidth}{426.8pt}
+\setlength{\textheight}{654.4pt}
+\setlength{\headsep}{18pt}
+\setlength{\headheight}{15pt}
+\setlength{\topmargin}{-41.7pt}
+\setlength{\topskip}{10pt}
+\setlength{\footskip}{42pt}
+
+\setlength{\parindent}{0pt}
+
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+
+\usepackage{xspace} % context sensitive space after macros
+\makeatletter
+\DeclareRobustCommand\onedot{\futurelet\@let@token\@onedot}
+\def\@onedot{\ifx\@let@token.\else.\null\fi\xspace}
+\def\eg{{e.g}\onedot} \def\Eg{{E.g}\onedot}
+\def\ie{{i.e}\onedot} \def\Ie{{I.e}\onedot}
+\def\cf{{c.f}\onedot} \def\Cf{{C.f}\onedot}
+\def\etc{{etc}\onedot} \def\vs{{vs}\onedot}
+\def\wrt{w.r.t\onedot} \def\dof{d.o.f\onedot}
+\def\etal{{et al}\onedot}
+\def\zB{z.B\onedot} \def\ZB{Z.B\onedot}
+\def\dh{d.h\onedot} \def\Dh{D.h\onedot}
+
+% http://tex.stackexchange.com/questions/5223/command-for-argmin-or-argmax
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\makeglossary
+
+\begin{document}
+	\include{titlepage}
+
+	\include{abstract}
+
+	\tableofcontents
+	\newpage
+
+	\include{introduction}
+	\include{image-retrieval}
+	\include{convolutional-neural-networks}
+	\include{neural-codes-image-retrieval}
+	\include{experiments}
+	\include{conclusion}
+
+	\bibliographystyle{alpha}
+	\bibliography{seminar}
+\end{document}

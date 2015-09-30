@@ -1,0 +1,409 @@
+\section{Image Retrieval}
+\label{sec:image-retrieval}
+
+Given a database of images $X = \{x_1, \ldots, x_N\}$ and a query image $z_0$ showing a particular object or scene, the task of image retrieval is usually formalized as follows:
+
+\vskip 6px
+\textbf{Problem.} Find an ordered list of images $Z = (z_1, \ldots, z_K)$ such that, for an appropriate distance function $d$, it holds:
+\begin{align}
+    d(z_0, z_k) \leq d(z_0, z_{k + 1}), 1 \leq k < K\quad\text{ and }\quad d(z_0,z_k) < d(z_0, x_n) \forall 1 \leq k \leq K, x_n \notin Z\label{eq:nn}
+\end{align}
+which basically describes a $K$-nearest neighbor search.
+\vskip 6px
+
+% This formulation does summarize the usual approach taken towards image retrieval within the literature and reduces the original binary classification problem (for example ``find images containing the same object'') to a $Q$-nearest-neighbor problem \cite{PhilbinChumIsardSivicZisserman:2007}.
+
+% In the following, we want to give a brief overview over different techniques employed for image retrieval. Beneath discussing approaches included in the comparison of Babenko \etal \cite{BabenkoSlesarevChigorinLempitsky:2014}, we discuss additional influential work and give a coarse taxanomy of these approaches.
+% Roughly, we divide the image retrieval problem in image description, descripto compression and nearest-neighbor search and query expansion. While early work in image retrieval usually present complete image retrieval systems (see \cite{RuiHuangChang:1999}), recent publications focus on these subproblems.
+
+While early work on image retrieval presented complete retrieval systems, recent publications usually focus on subproblems. Therefore, in the following, we roughly divide this problem into image description, compression, nearest neighbor search and query expansion.
+
+\subsection{Image Description}
+
+A fundamental problem in image retrieval is image representation, that is the characterization of an image using a feature vector of fixed dimensionality. We distinguish global descriptors directly constituting an image representation as well as local descriptors which usually need to be aggregated into an image representation of fixed dimensionality.
+
+\subsubsection{Aggregation of Local Descriptors}
+\label{subsubsec:local-descriptors}
+
+Local descriptors are designed to represent regions around interest points. For image retrieval, these interest points are computed using a scale, rotation and affine invariant detector. 
+% Usually, such detectors are developed to provide invariance towards rotation, scaling or affine transformation.
+We refer to \cite{MikolajczykSchmid:2004} for details and discuss the Scale-Adapted Harris Detector as example~\cite{MikolajczykSchmid:2004}.
+
+\vskip 6px
+\textbf{Scale-Adapted Harris Detector} \cite{MikolajczykSchmid:2004,HarrisStephens:1988}. The Harris detector is based on the second moment matrix $A$
+of an image $x_n$ (see Equation \eqref{eq:harris}).
+%of the grayscale image $x_n$:
+%\begin{align}
+%    M = \begin{pmatrix}
+%        \partial_x^2 x_n & \partial_x \partial_y x_n\\
+%        \partial_x \partial_y x_n & \partial_y^2 x_n
+%    \end{pmatrix}\label{eq:second-moment}.
+%\end{align}
+The corresponding eigenvalues $\lambda_1,\lambda_2$ represent the signal change in two orthogonal directions and interest points are extracted at pixels where both eigenvalues are large. For efficiency, Harris and Stephens \cite{HarrisStephens:1988} propose to maximize
+\begin{align}
+    \lambda_1 \lambda_2 - \kappa(\lambda_1 + \lambda_2)^2 = \text{det}(A) - \kappa \text{trace}(A)^2
+    \quad\text{ with }\quad 
+    A = \begin{pmatrix}
+        \partial_x^2 x_n & \partial_{xy} x_n\\
+        \partial_{xy} x_n & \partial_y^2 x_n
+    \end{pmatrix}\label{eq:harris}
+\end{align}
+where $\kappa$ is a sensitivity parameter.
+In practice, the detector is applied in scale space, that is on a set of images
+\begin{align}
+    x_n^{(\sigma_s)} = g_{\sigma_s} \ast x_n
+\end{align}
+where $\ast$ denotes convolution and $\sigma_s$ is sampled at logarithmic scale.
+% \footnote{
+    % The Gaussian scale space is given by a set of images $x_n^{(\sigma_s)} = g_{\sigma_s} \ast x_n$ with $\sigma_s$ usually sampled at a logarithmic scale.
+% }
+Therefore, it automatically selects the optimal scale and defines the size of the region used for local descriptors. Several extensions have been proposed, for example the Harris-Laplace Detector uses the Scale-Adapted Harris Detector to detect interest points in a coarse scale space, and then refines detections by searching for extrema of the Laplacian-of-Gaussians
+\begin{align}
+    \Delta (g_{\sigma_s} \ast x_n) = \partial_{xx} (g_{\sigma_s} \ast x_n) + \partial_{yy} (g_{\sigma_s} \ast x_n),
+\end{align}
+which detects blob-like structures,
+% \footnote{
+    % The Laplacian-of-Gaussians detects blob like structured and is defined as $\partial_{xx} (g_{\sigma_s} \ast x_n) + \partial_{yy} (g_{\sigma_s} \ast x_n)$.
+% }
+in a finer scale space.
+\vskip 6px
+
+Note that instead of computing interest points, local descriptors can also be computed densily. It has been shown that this approach may reduce runtime and increase performance \cite{GordoSerranoPerronninValveny:2012}.
+
+\paragraph{Local Descriptors}
+\label{subsubsubsec:local-descriptors}
+
+Given a set of interest points, local descriptors are intended to compute discriminative characterizations of the corresponding regions. We follow \cite{Lowe:2004} and briefly introduce the most commonly used local descriptor, \textbf{SIFT}, and a simplistic local descriptor used for image retrieval in \cite{GeKeSun:2013}.
+
+\vskip 6px
+\textbf{Scale Invariant Feature Transform (SIFT)} \cite{Lowe:2004}. First, given a specific scale, the orientation of the interest point is determined by computing a gradient orientation histogram under a Gaussian window and using the maximum bin as orientation. In practice, $36$ bins are used to determine the orientation and up to three orientations corresponding to bins above $80\%$ of the maximum bin are retained as additional orientations. Then, \textbf{SIFT} divides a rectangular region, rotated according to the orientation determined previously, around the interest point into a $4 \times 4$ grid. For each grid element, a $8$-bin gradient orientation histogram is computed using trilinear interpolation. Pixels are weighted according to gradient magnitude and a Gaussian window. This results in a $c = 4\cdot4\cdot8$-dimensional descriptors which is $L_2$-normalized.
+
+In image retrieval, \textbf{SIFT} is the most commonly used local descriptor and several aggregation techniques are tailored specificly to \textbf{SIFT} descriptors (for example \cite{JegouDouzeSchmidPerez:2010}). Nevertheless, several extensions have been proposed, especially concerning normalization. For example, Arandjelovi{\'c} and Zisserman \cite{ArandjelovicZisserman:2012} propose to use \textbf{RootSIFT}, that is the original \textbf{SIFT} descriptor is $L_1$-normalized and the individual elements are square-rooted. As result, the Euclidean distance on \textbf{RootSIFT} resembles the Bhattacharyya coefficient
+% \footnote{
+    % The Bhattacharyya coefficient of two local descriptors $y_{l,n}$, $y_{l',n} \in \mathbb{R}^c$ from image $x_n$ is given as $\sum_{i = 1}^{c} \sqrt{y_{i,n,l} y_{i,l',n}}$.
+% }
+of the original \textbf{SIFT} descriptors.
+
+%\vskip 6px
+%\textbf{DAISY} \cite{TolaLepetitFua:2008}. Motivated by \textbf{SIFT} \cite{Lowe:2004}, Tola \etal propose a more efficient (see \cite{TolaLepetitFua:2008} for details on complexity) local descriptor. \textbf{DAISY} is based on a set of orientation maps computed from the gradient images $\partial_x x_n$ and $\partial_y x_n$:
+%\begin{align}
+%    g_\theta = \max\left\{0, cos(\theta) \partial_x x_n + sin(\theta) \partial_y x_n\right\}.
+%\end{align}
+%These orientation maps are iteratively convolved by a set of Gaussian filters corresponding to different scales. These orientation maps are sampled at pixels specified by direction and radius from the interest point. The final descriptor concatenates these values over all scales and appends thesuch that the resulting dimensionality is $c = R
+
+\vskip 6px
+\textbf{Sparse-Coded Micro Feature} \cite{GeKeSun:2013}. In their sparse-coding and max pooling framework (see next paragraph), Ge \etal use a simplistic local descriptor consisting only of the color values within the region around the interest point. For example, for a $5 \times 5$ region, the descriptor has dimension $c = 3\cdot 5^2$. Ge \etal argue that after sparse-coding and max pooling, meaningful descriptors are picked and small patches are invariant to affine transformations.
+
+\paragraph{Embedding and Aggregation Techniques}
+\label{paragraph:embedding-aggregation}
+
+To obtain a global representation of an image, local descriptors are aggregated. Following recent publications as \cite{GeKeSun:2013} or \cite{JegouZisserman:2014}, aggregation techniques are divided into an embedding step and the actual aggregation step (also referred to as encoding and pooling in \cite{GeKeSun:2013}). Given a set of extracted descriptors $Y_n = \{y_{1,n},\ldots,y_{L,n}\} \subset \mathbb{R}^c$ from image $x_n$, the goal is the computation of a $C$-dimensional image representation.
+
+\vskip 6px
+\textbf{Bag of Visual Words} \cite{SivicZisserman:2003}. Sivic and Zisserman, motivated by early text-retrieval systems, cluster all local descriptors $Y = \bigcup_{n = 1}^N Y_n$ using $k$-means clustering to define a vocabulary of visual words $\hat{Y} = \{\hat{y}_1,\ldots,\hat{y}_M\}$. Subsequently, descriptors are assigned to the nearest visual word and the global image representation is a sparse vector of word counts. Thus, the embedding step computes
+\begin{align}
+    f(y_{l,n}) = \left(\delta(NN_{\hat{Y}}(y_{l,n}) = \hat{y}_1), \ldots, \delta(NN_{\hat{Y}}(y_{l,n}) = \hat{y}_M)\right)
+\end{align}
+where $NN_{\hat{Y}}(y_{l,n})$ denotes the nearest neighbor of $y_{l,n}$ in $\hat{Y}$, that is $f_m(y_{l,n}) = 1$ if and only if $NN_{\hat{Y}}(y_{l,n}) = \hat{y}_m$. The aggregation step can be formalized as
+\begin{align}
+    F(Y_n) = \sum_{l = 1}^L f(y_{l,n})\label{eq:sum-aggregation}.
+\end{align}
+In practice, however, the so called term-frequency inverse-document-frequency weighting \cite{SivicZisserman:2003} is applied:
+\begin{align}
+    F_m(Y_n) = \frac{\sum_{l = 1}^L f_m(y_{l,n})}{\sum_{m' = 1}^M \sum_{l = 1}^L f_{m'}(y_{l,n})} \log\left(\frac{N}{\sum_{n = 1}^N \sum_{l = 1}^L f_m(y_{l,n})}\right)\label{eq:tf-idf}
+\end{align}
+where $f_m(y_{l,n})$ and $F_m(Y_n)$ denote component $m$ of the corresponding embedding and aggregation step, respectively.
+% Burstiness of VBoW: \cite{JegouDouzeSchmid:2009}
+The first term is the fraction of local descriptors assigned to visual word $\hat{y}_m$ and, thus, determines the importance of $\hat{y}_m$ in the image representation of image $x_n$. In contrast, the second term down-weights the influence of local descriptors assigned to  word $\hat{y}_m$ if it occurs frequently in the whole database. To alleviate the influence of bursty elements, that is few large elements in the image representation \cite{ArandjelovicZisserman:2013}, $F(Y_n)$ can alternatively be square-rooted element-wise and re-normalized. The final image representation has $C = M$ dimensions.
+
+%Instead of representing an image $x_n$ by an vector $f_n = (c_{1,n}, \ldots, c_{M,n})^T$ where $c_i$ is the word frequency of the $i$-th word, the image is represented by $f_n = (w_{1,n}, \ldots, w_{M,n})^T$ with
+%\begin{align}
+%    w_{i,n} = \frac{c_i}{\sum_{j = 1}^M c_j} \log \left(\frac{N}{\sum_{m = 1}^N c_{i,m}}\right) \left(=: f_{i,n}\right).\label{eq:tf-idf}
+%\end{align}
+%The first term in Equation \eqref{eq:tf-idf} describes the importance of words within image $x_n$, while the second term down-weights words ocurring frequently in the whole database.
+
+An early problem with this approach is of computional nature. In particular, it may be infeasible to apply $k$-means clustering on $Y$ for large databases (for example Philbin \etal \cite{PhilbinChumIsardSivicZisserman:2007} argue that even subsampling the descriptors of a $100k$ database would result in millions of local descriptors). While Nist{\'e}r and Ste{\'e}nius \cite{NisterStewenius:2006} proposed to use hierarchical $k$-means clustering, Philbin \etal \cite{PhilbinChumIsardSivicZisserman:2007} introduced an approximation. Hierarchical $k$-means proceeds by iteratively re-clustering a set of $M^\ast$ initial clusters -- that is, a clustering-tree with branching factor $M^\ast$ and depth $Q$ is generated, resulting in $(M^\ast)^Q$ visual words. Approximate $k$-means clustering replaces the exact distance computation by an approximation based on randomized k-d trees
+\footnote{
+    An implementation is available at \url{http://www.robots.ox.ac.uk/~vgg/software/fastanncluster/}.
+}.
+
+\vskip 6px
+\textbf{Fisher Vectors} \cite{PerronninDance:2007,JaakkolaHaussler:1999}. Following \cite{PerronninDance:2007} and \cite{JaakkolaHaussler:1999}, we first introduce the mathematical background of Fisher Vectors before making embedding and aggregation explicit. Therefore, we consider a Gaussian mixture model
+\begin{align}
+	p(y_{l,n}) = \sum_{m = 1}^M w_m \mathcal{N}(y_{l,n} | \mu_m, \Sigma_m),\quad \sum_{m = 1}^M w_m = 1
+\end{align}
+where $\mathcal{N}(y_{l,n} | \mu_m, \Sigma_m)$ refers to a Gaussian with mean $\mu_m$ and covariance $\Sigma_m$. The model is usually learned on $Y$ using the Maximum Likelihood criterion by employing a standard Expectation Maximization algorithm.
+%\begin{align}
+%    \mathcal{N}(y_{l,n} | \mu_m, \Sigma_m) = \frac{1}{\sqrt{(2\pi)^c det(\Sigma_m)}} \exp\left(-\frac{1}{2} (y_{l,n} - \mu_m) \Sigma_m^{-1}(y_{l,n} - \mu_m)\right).
+%\end{align}
+% \footnote{
+    % A Gaussian mixture model with $M$ components is defined as:
+    % \begin{align}
+        % p(y_{l,n}) = \sum_{m = 1}^M w_m p(y_{l,n} | \mu_m, \Sigma_m)\quad\text{ with }\quad p(y_{l,n} | \mu_m, \Sigma_m) = \frac{1}{\sqrt{(2\pi)^c det(\Sigma_m)}} \exp\left(-\frac{1}{2} (y_{l,n} - \mu_m) \Sigma_m^{-1}(y_{l,n} - \mu_m)\right).
+    % \end{align}
+% }.
+The idea of Fisher vectors is to characterize a local descriptor $y_{l,n}$ by the following gradient:
+\begin{align}
+    \nabla_{\mu_m} \log (p(y_{l,n}))\label{eq:fisher-gradient}.
+\end{align}
+Intuitively, Equation \eqref{eq:fisher-gradient} characterizes each descriptor $y_{l,n}$ by the direction in which the descriptor should be adapted to better fit the Gaussian mixture model. Taking into account all local descriptors $Y_n$ of image $x_n$, which are assumed to be independent, the log-likelihood can be written as
+\begin{align}
+    \log(p(Y_n)) = \sum_{l = 1}^L \log \left(p(y_{l,n})\right).
+\end{align}
+The partial derivative of the log-likelihood with respect to the mean $\mu_m$ is given as
+\begin{align}
+    \sum_{l = 1}^L \gamma_m(y_{l,n}) \Sigma_m^{-1} (y_{l,n} - \mu_m)
+\end{align}
+% Diagonal matrix: \cite{PerronninLiuSanchezPoirier:2010b}.
+where $\gamma_m(y_{l,n})$ describes the probability of descriptor $y_{l,n}$ belonging to component $m$:
+\begin{align}
+    \gamma_m(y_{l,n}) = \frac{w_m \mathcal{N}(y_{l,n} | \mu_m, \Sigma_m)}{\sum_{m' = 1}^M w_{m'} \mathcal{N}(y_{l,n} | \mu_{m'}, \Sigma_{m'})}
+\end{align}
+In practice, the covariance matrix $\Sigma_m$ is assumed to be diagonal, that is $\Sigma_m = \text{diag}(\sigma_{1,m}^2,\ldots,\sigma_{c,m}^2)$. Further, the gradient vectors are normalized using the Fisher information matrix
+\begin{align}
+	Z = \mathbb{E}_Y \left[\nabla \log(p(Y_n)) \nabla \log(p(Y_n))^T\right]
+\end{align}
+% \footnote{
+    % In \cite{PerronninDance:2007}, the Fisher information matrix is defined as
+    % \begin{align}
+        % Z = \mathbb{E}_Y \left[\nabla \log(p(Y)) \nabla \log(p'(Y))\right] \quad\text{ with }\quad p(Y) = \prod_{n = 1}^N \prod_{l = 1}^L y_{l,n}.
+    % \end{align}
+% }
+for which Perronnin \etal derive the following approximation:
+\begin{align}
+    Z_{\mu_m}^{-1} \nabla_{\mu_m} \log (p(y_{l,n})) \quad\text{ with }\quad Z_{\mu_m} = \frac{L w_m}{\sigma_m^2}.
+\end{align}
+Here, the inversion of $Z_{\mu_m}$ as well as the division by $\sigma_m^2$ is meant element-wise.
+%Note that the above reasoning may also be applied on the covariance matrices $\Sigma_m = \text{diag}(\sigma_{1,m}^2,\ldots,\sigma_{c,m}^2)$.
+%It can be shown, that
+%\begin{align}
+%    \nabla_{\mu_m} \log (p(y_{l,n})) = \frac{1}{\sqrt{w_m}} \gamma_m(y_{l,n}) (y_{l,n} - \mu_m) / \sigma_m^2
+%\end{align}
+
+Based on the above derivation, we use
+\begin{align}
+    f(y_{l,n}) = \left(Z_{\mu_1}^{-1} \nabla_{\mu_1} p (y_{l,n}),\ldots,Z_{\mu_M}^{-1}  \nabla_{\mu_M} p (y_{l,n})\right)
+\end{align}
+as the embedding step and Equation \eqref{eq:sum-aggregation} for aggregation. The image representation has a dimensionality of $C = M c$ and is usually power-law normalized, that is
+\begin{align}
+    F_m(Y_n) = \text{sign}\left(F_m(Y_n)\right) \left|F_m(Y_n)\right|^\alpha
+\end{align}
+with $\alpha \in (0,1)$. Commonly, $\alpha$ is chosen as $\alpha = 0.5$ and, similar to \textbf{RootSIFT}, the normalization is then referred to as signed square-rooting. Subsequently, the image representation is $L_2$-normalized. Typical values are $M = 64$ or $M = 256$ and $c = 128$ for \textbf{SIFT} descriptors.
+
+% TODO: dimension.
+\vskip 6px
+\textbf{Vector of Locally Aggregated Descriptors (VLAD)} and \textbf{Vocabulary Adaptation} \cite{JegouDouzeSchmidPerez:2010,ArandjelovicZisserman:2013}. Here, similar to the Bag of Visual Words model, the embedding step is guided by a vocabulary of $M$ visual words learned using $k$-means clustering. Instead of counting word occurrences, J{\'e}gou \etal \cite{JegouDouzeSchmidPerez:2010} consider the corresponding residuals:
+\begin{align}
+    f(y_{l,n}) = \left(\delta(NN_{\hat{Y}}(y_{l,n}) = \hat{y}_1) (y_{l,n} - \hat{y}_1), \ldots, \delta(NN_{\hat{Y}}(y_{l,n}) = \hat{y_M}) (y_{l,n} - \hat{y}_M)\right).
+\end{align}
+The corresponding aggregation step is given by Equation \eqref{eq:sum-aggregation}. The image representation is subsequently either $L_2$-normalized or power-law normalized \cite{ArandjelovicZisserman:2013}. In contrast, the sum of residuals of each visual word can also be $L_2$-normalized independently before $L_2$-normalizing the whole image representation \cite{ArandjelovicZisserman:2013}. This normalization scheme is termed intra-normalization. The final image representation has dimension~$C~=~Mc$.
+
+In \cite{ArandjelovicZisserman:2013}, Arandjelovic and Zisserman additionally propose Vocabulary Adaptation. As discussed earlier, obtaining a vocabulary of visual words using $k$-means clustering may be computationally expensive for large databases. In addition, the visual words would have to be re-computed if the database is growing over time. Vocabulary Adaptation allows to adapt \textbf{VLAD} descriptors computed over an arbitrary database to an updated -- or even new -- database and proceeds as follows. First each visual word is adapted to be the mean of local descriptors assigned to it. Note that this is not equivalent to re-clustering the set of all local descriptors as the assignments of local descriptors to visual words do not change. Then, the \textbf{VLAD} descriptors are re-computed taking into account the adapted visual words. It is important to note that this second step does not need to access the original local descriptors.
+
+\vskip 6px
+\textbf{Sparse-Coded Features} \cite{GeKeSun:2013}. Given a vocabulary of visual words, Ge \etal use sparse codes as embedding:
+\begin{align}
+    f(y_{l,n}) = \text{arg} \min_{r_l} \|y_{l,n} - \hat{Y} r_l\|_2^2 + \lambda \|r_l\|_1
+\end{align}
+where $\hat{Y}$ contains the visual words $\hat{y}_m$ as columns and $\lambda$ is a regularization parameter. This can be interpreted as linear regression with $L_1$ regularization. As second step, these sparse codes are pooled into a single $M$-dimensional feature vector. Max pooling is given by
+\begin{align}
+    F(Y_n) = \left(\max_{1 \leq l \leq L} \{f_1(y_{l,n})\}, \ldots, \max_{1 \leq l \leq L} \{f_M(y_{l,n})\}\right)\label{eq:max-pooling},
+\end{align}
+while Ge \etal refer to Equation \eqref{eq:sum-aggregation} as average pooling.
+The final image representation is $L_2$-normalized and has dimension $C = M$.
+
+Ge \etal show that their approach is able to aggregate different types of local descriptors. In particular, after extracting $K'$ sets of local descriptors $Y^{(1)}_n, \ldots, Y^{(K')}_n$, the above aggregation technique is applied on each set individually and the obtained representations are concatenated:
+\begin{align}
+    f(y_{l,n}^{(k)}) = \left(0,\ldots,r_{l,1}^{(k)},\ldots,r_{l,M}^{(k)},\ldots,0\right)
+\end{align}
+where $r_{l,m}^{(k)}$ is defined as above after minimizing Equation \eqref{eq:sparse-coding-objective} on $Y_n^{(k)}$ for pre-computed visual words $\hat{y}_1^{(k)},\ldots,\hat{y}_M^{(k)}$ (assuming the vocabulary size for the different types of local descriptors to be $M$). Max pooling and average pooling are applied as in Equation \eqref{eq:max-pooling} and Equation \eqref{eq:sum-aggregation}, respectively, on the concatenated image representation.
+
+\vskip 6px
+\textbf{Triangulation Embedding and Democratic Aggregation} \cite{JegouZisserman:2014}. J{\'e}gou and Zisserman are motivated by the aggregation function used in the Bag of Visual Words model or \textbf{VLAD}, see Equation \eqref{eq:sum-aggregation},
+% \begin{align}
+    % F(Y_n) = \sum_{l = 1}^L f(y_{l,n})
+% \end{align}
+which gives unequal weight to the descriptors in $Y_n$. We follow \cite{JegouZisserman:2014} and motivate their approach by considering the set similarity
+\begin{align}
+    F(Y_n)^T F(Y_n) = \sum_{l = 1}^L \sum_{l' = 1}^L f(y_{l,n})^T f(y_{l',n})\label{eq:set-similarity}.
+\end{align}
+Note that Equation \eqref{eq:set-similarity} can also be written using a kernel $k(y_{l,n},y_{l',n})$ as done in \cite{JegouZisserman:2014}. Further, we investigate the contribution of a single descriptor $y_{l,n}$ to the set similarity in Equation \eqref{eq:set-similarity}:
+\begin{align}
+    f(y_{l,n})^T \sum_{l' = 1}^L f(y_{l',n}) = \|f(y_{l,n})\|_2^2 + f(y_{l,n})^T \sum_{l' \neq l} f(y_{l',n})\label{eq:set-similarity-single}.
+\end{align}
+J{\'e}gou and Zisserman approach the second term at the right hand side of Equation \eqref{eq:set-similarity-single} by minimizing the inner product of unrelated local descriptors. Instead of using the absolute distance between local descriptors and visual words, the Triangulation Embedding uses directional information only. Therefore, we consider the normalized residual
+\begin{align}
+    r_{l,m} = \frac{y_{l,n} - \hat{y}_m}{\|y_{l,n} - \hat{y}_m\|_2}.
+\end{align}
+Let $r_l = (r_{l,1}^T,\ldots,r_{l,M}^T)$ be the concatenation of these residuals. Then, the embedding step is given as
+\begin{align}
+    f(y_{l,n}) = \left(\Sigma (r_l)\right)^{-\frac{1}{2}} (r_l - \mu(r_l))\label{eq:whitening}
+\end{align}
+which essentially is a whitening operation,
+% \footnote{
+    % The whitening operation is intended to transform a set of data $\{r_l\}_{l = 1}^L$ to have zero mean and diagonal covariance. Through basic linear algebra, we know that the covariance matrix $\Sigma(r_l)$ can be decomposed into
+    % \begin{align}
+        % \Sigma(r_l) = \left(\Sigma (r_l)\right)^{\frac{1}{2}} \left(\Sigma (r_l)\right)^{\frac{1}{2}} = V \sqrt{S} \sqrt{S} V^{-1}
+    % \end{align}
+    % with $V$ holding the eigenvectors of $\Sigma(r_l)$ and $S$ being the diagonal matrix containing the corresponding eigenvalues. Removing the first components of the whitened vector $f(y_{l,n})$ corresponds to removing the influence of the largest eigenvalues.
+% }
+that is $\Sigma(r_l)$ and $\mu(r_l)$ are covariance and mean estimated on $\bigcup_{n = 1}^N\{r_l\}_{l = 1}^L$. Further, J{\'e}gou and Zisserman experimentally show that removing the components corresponding to the largest eigenvalues, which is equivalent to removing the first components of $f(y_{l,n})$, reduces the similarity between unrelated descriptors. Finally, $f(y_{l,n})$ is usually $L_2$-normalized.
+
+Considering the set similarity of Equation \eqref{eq:set-similarity}, all local descriptors should contribute equally during aggregation. Therefore, J{\'e}gou and Zisserman introduce the concept of a democratic kernel: A kernel $k(y_{l,n}, y_{l',n})$, for example $k(y_{l,n}, y_{l',n}) = y_{l,n}^Ty_{l',n}$, is said to be democratic if there exists a constant $\kappa$ (which may or may not depend on the set $Y$) such that
+\begin{align}
+    \sum_{l' = 1}^L k(y_{l,n}, y_{l',n}) = \kappa \quad\forall 1 \leq l \leq L.
+\end{align}
+Intuitively, this constraint demands that all local descriptors contribute equally to the set similarity. To accomplish this, a kernel can be replaced by a weighted counterpart:
+\begin{align}
+    k'(y_{l,n},y_{l',n}) = \lambda_l \lambda_{l'} k(y_{l,n},y_{l',n})
+\end{align}
+The weights are learned by solving
+\begin{align}
+    \lambda_l \left(\sum_{l' = 1}^L \lambda_{l'} k(y_{l,n},y_{l',n})\right) = \kappa \quad\text{ with }\quad \lambda_l > 0, \forall 1 \leq l \leq L.\label{eq:democratic-objective}
+\end{align}
+using an adapted Sinkhorn algorithm
+\footnote{
+    In 1964, Sinkhorn \cite{Sinkhorn:1964} originally approached the problem of generating a doubly stochastic matrix $S$, that is a matrix satisfying $\sum_i s_{i,j} = 1$ and $\sum_j s_{i,j} = 1$, $\forall i,j$. Therefore, given an arbitrary matrix $A$, the problem of finding diagonal matrices $\Lambda_1$ and $\Lambda_2$ such that $S = \Lambda_1 A \Lambda_2$ is doubly stochastic is equivalent to solving Equation \eqref{eq:democratic-objective} with $\kappa = 1$. Sinkhorn proofs that for positive $A$ (that is $a_{i,j} > 0$) such matrices $\Lambda_1$, $\Lambda_2$ exist and iteratively normalizing the rows and the columns of $A$ converges to $S$. Further details can also be found in the appendix of~\cite{JegouZisserman:2014}.
+} \cite{Sinkhorn:1964}. Based on the computed weights, the aggregation step is given as
+\begin{align}
+    F(Y_n) = \sum_{l = 1}^L \lambda_l f(y_{l,n})
+\end{align}
+The final image representation has dimensionality $C = Mc$ and is both power-law normalized and $L_2$-normalized.
+
+\vskip 6px
+\textbf{Descriptor Learning for Image Retrieval} \cite{PhilbinIsardSivicZisserman:2010}. Philbin \etal try to avoid quantization errors, often incurred when obtaining visual words using $k$-means clustering, by learning a linear transformation $P \in \mathbb{R}^{c' \times c}$ such that matching descriptors lie more closely together and non-matching descriptors farther apart. First, a dataset of descriptor pairs is generated as follows: We randomly select a pair of images, detect interest points and extract local descriptors. Then, we apply Lowe's (second-nearest neighbor) ratio test
+% \footnote{
+    %In general, interest points of a pair of images are matched to the nearest neighbor. However, some local descriptors may not have a correct match within the whole database.
+    % Lowe \cite{Lowe:2004} introduced the (second nearest-neighbor) ratio test to filter out local descriptors without correct matches within the database (for example due to background variation). Given a labeled training set and a local descriptor, the distance to the nearest neighbor (the matching local descriptor) is compared to the distance to the second-nearest neighbor which is constrained to come from an unrelated image (that is, a differently labeled image). All matches with the fraction of those distances above $0.8$ are discarded.
+    %For experimental details and justification we refer to \cite{Lowe:2004}.
+% }
+\cite{Lowe:2004}: To filter out local descriptors without correct match within the database (for example, due to background variation), descriptors where the fraction of distances to the first and the second nearest-neighbor is above $0.8$ are discarded. Here, the second nearest-neighbor is constrained to come from an unrelated image. Finally, we estimate an affine transformation using \textbf{RANSAC}
+% \footnote{
+    % Random Sample Consensus, \textbf{RANSAC}, is used to estimate an affine transformation from a set of interest point matches with a large fraction of outliers. \textbf{RANSAC} proceeds as follows: An affine transformation is estimated based on a minimal set of randomly selected matches. Based on the estimated affine transformation, the number of inliers fitting the affine transformation is determined. If this number exceeds a threshold, the affine transformation is re-estimated, otherwise the procedure is repeated.
+    %\begin{inparaenum}[(i)]
+    %    \item We randomly select the minimum number of matches to fit an affine model;
+    %    \item and based on these points we estimate the model parameters;
+    %    \item then, we determine the number of matches fitting the model with a defined threshold;
+    %    \item if the number of inliers exceeds a specified threshold we re-estimate the affine transformation, otherwise we repreat step (i) -- (iii).
+    %\end{inparaenum}
+% }
+.
+The dataset includes the inliers found by \textbf{RANSAC} as positives $Y_{\text{pos}} \subset \mathbb{R}^c \times \mathbb{R}^c$, the outliers found by \textbf{RANSAC} as hard negatives $Y_{\text{out}}$ and random matches as easy negatives $Y_{\text{rnd}}$. Philbin \etal minimize the following objective:
+\begin{align}
+    E(P) =& \sum_{(y_{l,n},y_{l',n}) \in Y_{\text{pos}}} \mathcal{L}(b_1 - d(P y_{l,n}, P y_{l',n})) + \sum_{(y_{l,n},y_{l',n})\in Y_{\text{out}}} \mathcal{L}(d(P y_{l,n}, P y_{l',n}) - b_1)\notag\\
+    &+ \sum_{(y_{l,n},y_{l',n}) \in Y_{\text{rnd}}} \mathcal{L}(d(P y_{l,n}, P y_{l',n}) - b_2) + \frac{\lambda}{2} \|P\|^2\label{eq:max-marign}.
+\end{align}
+Intuitively, this is a maximum margin approach where $\lambda$ controls the regularization term and
+\begin{align}
+    \mathcal{L}(z) = \log(1 + \exp(-z))
+\end{align}
+is the logistic loss. Equation \eqref{eq:max-marign} is minimized using stochastic gradient descent, see Section \ref{subsec:training}. In practice, the whole procedure is applied on \textbf{SIFT} \cite{Lowe:2004} descriptors and subsequently the Bag of Visual Words model is used. The final image representation has dimension $C = M c'$.
+
+\subsubsection{Global Descriptors}
+\label{subsubsec:global-descriptors}
+
+Global descriptors are not based on interest points but directly compute a global image representation.
+% One of the earliest global descriptors for image retrieval is the color histogram \cite{RuiHuangChang:1999} where research focused on choosing appropriate distance functions.
+Here, we intend to discuss the \textbf{GIST} \cite{OlivaTorralba:2001} descriptor as example of a global descriptor used in image retrieval.
+
+% TODO: dimension
+\vskip 6px
+\textbf{GIST} \cite{OlivaTorralba:2001}. In \cite{OlivaTorralba:2001}, Oliva and Torralba propose the Spatial Envelope representation which is used interchangeably with \textbf{GIST} and is intended to model the following scene properties:
+\begin{inparaenum}[(i)]
+    \item naturalness is intended to distinguish natural from human-made scenes;
+    \item openness refers to the difference between open scenes and enclosed scenes;
+    \item roughness refers to the size of the parts of a scene;
+    \item expansion refers to the depth perception of a scene;
+    \item and ruggedness characterizes to what extent the horizontal line of a scene is visible.
+\end{inparaenum}
+We refer to \cite{OlivaTorralba:2001} for details and instead focus on the actual computation of \textbf{GIST}~\footnote{
+    We follow the original implementation of \textbf{GIST} available at \url{http://people.csail.mit.edu/torralba/code/spatialenvelope/}.
+    % Down-scaling: \cite{DouzeJegouSandhawaliaAmsalegSchmid:2009}
+}. In a first step, the image is down-scaled and a blurred version of the image is subtracted. The result is contrast normalized. Then, a set of Gabor-like filters at multiple scales and with multiple orientations are applied. The image is subdivided into a grid of rectangles and average pooling is applied. Finally, the responses in each rectangle, over all scales and orientations, are combined into a single global descriptor. Typically, $8$ orientations at $4$ scales are used and the image is divided into a $4 \times 4$ grid resulting in an $C = 8\cdot4\cdot16$-dimensional descriptor.
+
+\subsection{Descriptor Compression, Indexing and Nearest Neighbor Search}
+
+Given image representations
+\footnote{
+    In the following, we abuse notation and use $x_n$ to refer to both the image and the image representation.
+} $X = \{x_1,\ldots,x_N\} \subset \mathbb{R}^C$ of all images within the database, we are interested in the nearest neighbors of the query $z_0$ in $X$ \cite{JegouDouzeSchmid:2011}.
+% \begin{align}
+    % z_1 = \argmin_{x_n} \{d(x_n, z_0)\},\quad z_2 = \argmin_{x_n \neq z_1} \{d(x_n, z_0)\},\quad...\label{eq:nn}
+% \end{align}
+As solving Equation \eqref{eq:nn} may be infeasible for large databases, authors often discuss compression of their proposed image representation. While \textbf{PCA}
+% \footnote{
+    % Principical Component Analysis, \textbf{PCA}, estimates a project $P \in \mathbb{R}^{c' \times c}$ (usually $c' \ll c$) such that the variance of the projected image representation is maximized. An alternative (and easier) derivation is based on the reconstruction error
+    % \begin{align}
+        % \sum_{n = 1}^N \|x_n - P P^T x_n\|_2^2
+    % \end{align}
+    % which is minimized by \textbf{PCA}. The rows of $P$ are given by the eigenvalues of $X X^T$ with $X = (x_1,\ldots,x_N) \in \mathbb{R}^{C \times N}$.
+% }
+is frequently used within the image retrieval community (for example \cite{BabenkoSlesarevChigorinLempitsky:2014,GeKeSun:2013,ArandjelovicZisserman:2013}), discriminative techniques may be beneficial. As example, we discuss the approach by Gordo \etal \cite{GordoSerranoPerronninValveny:2012}.
+
+\vskip 6px
+\textbf{Joint Subspace and Classifier Learning} \cite{GordoSerranoPerronninValveny:2012}. Given a labeled training set
+\begin{align}
+    \{(x_1,t_1),\ldots,(x_N,t_N)\},\quad t_n \in \{1,\ldots,T\},
+\end{align}
+Joint Subspace and Classifier Learning aims to project the image representations and their labels into a common subspace where relevant labels are closer to the corresponding image representation than irrelevant ones. Gordo \etal propose to jointly learn a dimensionality reduction $P \in \mathbb{R}^{C' \times C}$ and a set of classifiers $w_t \in \mathbb{R}^{C'}$, $t \in \{1,\ldots,T\}$, in a large-margin framework. Therefore, the relevance of label $t$ to image representation $x_n$ is expressed as
+\begin{align}
+	s(x_n, t) = (P x_n)^T w_t.
+\end{align}
+Then,
+\begin{align}
+	E(P) = \sum_{(x_n, t_n, t) : t \neq t_n} \max\{0, 1 - s(x_n, t_n) + s(x_n, t)\}
+\end{align}
+is minimized using stochastic gradient descent. In particular, after sampling a triple $(x_n, t_n, t)$ with $t \neq t_n$, the projection matrix $P$ and the classifiers $w_{t_n}$ and $w_t$ are updated only if the loss 
+\begin{align}
+    \max\{0, 1 - s(x_n, t_n) + s(x_n, t)\}
+\end{align}
+is positive. Then the corresponding updates in iteration $[\tau + 1]$ are given as
+\begin{align}
+    P[\tau + 1] &= P[\tau] + \gamma (w_{t_n}[\tau] - w_t[\tau]) x_n^T\\
+    w_{t_n}[\tau + 1] &= w_{t_n}[\tau] + \gamma P[\tau] x_n\\
+    w_t[\tau + 1] &= w_t[\tau] - \gamma P[\tau] x_n
+\end{align}
+where $\gamma$ is the learning rate, see Section \ref{subsec:training}. While $P$ is subsequently used for dimensionality reduction, the learned classifiers $w_t$ are discarded.
+\vskip 6px
+
+Now, given a (possibly low-dimensional) set of image representations, Equation \eqref{eq:nn} can be solved using exhaustive nearest neighbor search with complexity $\mathcal{O}(NC)$. In contrast, approximate nearest neighbor search (see \cite{JegouDouzeSchmid:2011} for references) tries to reduce complexity and memory consumption. As example, we discuss the approach proposed by J{\'e}gou \etal \cite{JegouDouzeSchmid:2011}.
+
+% TODO: exact numbers of memory consumption.
+\vskip 6px
+\textbf{Product Quantization} \cite{JegouDouzeSchmid:2011}. In general, a quantizer $q$ is a function mapping each image representation to one of $M$ centroids. Essentially, a quantizer tries to reconstruct a given database by $M$ representatives and, thus, the reconstruction error can be expressed as
+\begin{align}
+    MSE(q) &= \int p(x_n) d(x_n, q(x_n))^2 d x_n\\
+    &\approx \sum_{n = 1}^N d(x_n, q(x_n))^2\label{eq:mse-approx}.
+\end{align}
+Product Quantization subdivides each image representation into subvectors and each subvector is quantized separately using $k$-means clustering. The advantage of the product quantization lies in reduced memory consumption. In particular, $k$-means clustering requires to store $\mathcal{O}(MC)$ floating point values, while Product Quantization stores $\mathcal{O}(QM^\ast C) = \mathcal{O}(M^{\frac{1}{Q}}C)$ with $Q$ being the number of quantizers and $M = \left(M^\ast\right)^Q$.
+
+Based on the above quantization, J{\'e}gou \etal propose two approaches to approximate search within the quantized image representations. Using symmetric distance computation, the distance $d(x_n, z_0)$ is approximated by
+\begin{align}
+    d(x_n, z_0) \approx \hat{d}(x_n, z_0) = d(q(x_n), q(z_0)).
+\end{align}
+In contrast, asymmetric distance computation is given as
+\begin{align}
+    \hat{d}(x_n, z_0) = d(x_n, q(z_0)).
+\end{align}
+J{\'e}gou \etal provide guarantees on the error of these approximations: the distance error of symmetric distance computation is statistically bounded by $MSE(q)$, while the distance error of asymmetric distance computation is statistically bounded by $2 MSE(q)$. In practice, both bounds can be computed using Equation \eqref{eq:mse-approx}.
+
+The above approach is still based on exhaustive search. J{\'e}gou \etal use an inverted filesystem to circumvent exhaustive search. Before using product quantization, the image representations are first quantized into a coarse quantization (with the number of centroids being significantly smaller compared to the product quantization). Each image representation is stored in a list assigned to the corresponding centroid of the coarse quantization.
+Instead of exhaustive search, only one of these lists is searched for nearest neighbors.
+% Instead of using exhaustive search, only the list corrsponding to the nearest centroid of the coarse quantization needs to be searched for the nearest neighbor.
+We refer to \cite{JegouDouzeSchmid:2011} for details.
+
+\subsection{Query Expansion}
+
+After retrieving a list of nearest neighbors, several techniques can be employed to improve query results: query expansion (for example \cite{ArandjelovicZisserman:2012,ChumPhilbinSivicIsardZisserman:2007}) and spatial verification (for example \cite{PhilbinChumIsardSivicZisserman:2007}). As example, we briefly discuss average query expansion \cite{ChumPhilbinSivicIsardZisserman:2007}, however, refer to \cite{PhilbinChumIsardSivicZisserman:2007} for details on spatial verification.
+
+\vskip 6px
+\textbf{Average Query Expansion} \cite{ChumPhilbinSivicIsardZisserman:2007}. Query expansion aims to improve query results by re-issuing a number of highly ranked results as new query to include further relevant results. Average Query Expansion uses the top $K^\ast$ results and averages the corresponding term-frequency
+\footnote{
+    Note that Chum \etal \cite{ChumPhilbinSivicIsardZisserman:2007} use the Bag of Visual Words model with term-frequency weighting only (that is, only the first term in Equation \eqref{eq:tf-idf}).
+} representation:
+\begin{align}
+    z_{\text{avg}} = \frac{1}{K^\ast + 1} \left(z_0 + \sum_{k = 1}^{K^\ast} z_k\right).
+\end{align}
+The results of query $z_{\text{avg}}$ is appended to the first $K^\ast$ results of the original query. Usually, this type of query expansion is used in combination with spatial verification such that only verified results are included in the query expansion.
+
+% TODO: Discussion of local features and vocabularies: visual words through clsutering suffer from noise and dropout \cite{PhilbinIsardSivicZisserman:2010}.

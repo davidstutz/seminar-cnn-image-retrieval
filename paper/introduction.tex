@@ -1,0 +1,41 @@
+\section{Introduction}
+
+Content-based image or object retrieval,
+% \footnote{
+    % The difference between object retrieval and image retrieval is given implicitly within the literature and techniques can often be used for both problems (for example see \cite{PhilbinChumIsardSivicZisserman:2007}). Further, the term object may be inappropriate when referring to scenes instead of single objects. Therefore, in the following, we speak of image retrieval and often refer to these subproblems implicitly. In addition, we always refer to content-based image retrieval (that is no meta information is used).
+% }
+the problem of finding images within a large database containing the same or similar objects or scenes as a given query image, is a fundamental problem in computer vision. In particular, in order to extract useful information from large databases of images these databases need to be organized and searchable.
+% The problem arises from the wish to extract information from large databases of digital images. However, information may only be extracted when the data can be organized efficiently \cite{RuiHuangChang:1999}.
+Originally, images were manually annotated with keywords and text-based retrieval systems were utilized. However, due to the rapidly increasing size of image collections, manual annotation became infeasible. Therefore, content-based retrieval systems relying on image content only were developed and are heavily researched within the computer vision community.
+% In practice, given a query image, the problem is often simplified by asking for an ordered list of images containing the same object or showing a similar scene with high probability \cite{PhilbinChumIsardSivicZisserman:2007}.
+% A formal definition of the problem is given in section \ref{sec:image-retrieval}.
+In the following, we always speak of content-based image retrieval and include the subproblem of object retrieval implicitly (in practice, techniques can often be applied to both problems \cite{PhilbinChumIsardSivicZisserman:2007}).
+
+While the problem has been studied for several decades, recent success is based on the Bag of Visual Words model proposed by Sivic and Zisserman \cite{SivicZisserman:2003}. Local descriptors, used to characterize interest points within the image, are quantized into so-called visual words and the image is represented by the corresponding word counts. While the Bag of Visual Words model has steadily been improved (for example \cite{ChumPhilbinSivicIsardZisserman:2007,PhilbinChumIsardSivicZisserman:2007,ArandjelovicZisserman:2012}), different techniques of aggregating local descriptors (for example \cite{JegouDouzeSchmidPerez:2010,GeKeSun:2013,JegouZisserman:2014,PhilbinIsardSivicZisserman:2010}) have been used and global descriptors have been used, as well (for example \cite{OlivaTorralba:2001}).
+% In analogy to the Bag of Words (BoW) model in text retrieval systems where a document is represented by a sparse vector counting word ocurrences, Sivic and Zisserman \cite{SivicZisserman:2003} proposed the Bag of Visual Words model. Using interest point detectors and local descriptors (see \cite{MikolajczykSchmid:2005}) the obtained feature vectors are quantized using clustering and an image is represented by the counts of word ocurrences. Since its introduction, the Bag of Visual Words model has steadily been improved (for example \cite{ChumPhilbinSivicIsardZisserman:2007,PhilbinChumIsardSivicZisserman:2007,ArandjelovicZisserman:2012}). Furthermore, different approaches of aggregating local descriptors have been proposed (for example \cite{JegouDouzeSchmidPerez:2010,GeKeSun:2013,JegouZisserman:2014}) and global descriptors have been used as well (for example \cite{DouzeJegouSandhawaliaAmsalegSchmid:2009}).
+
+Similar to image retrieval, convolutional neural networks \cite{LeCunBoserDenkerhendersonHowardHubbardJackel:1989} have been studied for more than two decades (see \cite{Bengio:2009,LeCunBoserDenkerhendersonHowardHubbardJackel:1989}) but had their breakthrough only recently \cite{Bengio:2009}.
+% Although such aggregation techniques show state-of-the-art performance, the underlying idea (inspired by the Bag of Visual Words model) is quite old now. 
+% In contrast, onvolutional neural networks \cite{LeCunBoserDenkerhendersonHowardHubbardJackel:1989} had their breakthrough only recently.
+In particular Krizhevsky \etal \cite{KrizhevskySutskeverHinton:2012} demonstrated astounding results on the ImageNet classification challenge
+\footnote{
+    See \url{http://www.image-net.org/challenges/LSVRC/2010/}.
+}.
+Thus, convolutional neural networks have been applied to a range of different applications, and the usefulness of the generated intermediate activations has been studied within the literature \cite{Bengio:2009}. Recently, Babenko \etal \cite{BabenkoSlesarevChigorinLempitsky:2014} used convolutional neural networks, in particular the architecture proposed by Krizhevsky \etal, for image retrieval.
+
+\vskip 6px
+\textbf{Outline.} This report is intended to introduce the reader to recent techniques in image retrieval. Furthermore, we briefly introduce the fundamentals of convolutional neural networks in order to discuss their application to image retrieval. In Section \ref{sec:image-retrieval} we introduce the problem of image retrieval and discuss aggregation techniques for local descriptors as well as the application of global descriptors. Furthermore, we briefly introduce approximate nearest neighbor techniques, discriminative dimensionality reduction and average query expansion. In Section \ref{sec:convolutional-neural-networks} we discuss the mathematical foundation of convolutional neural networks including their training and regularization. Subsequently, in Section \ref{sec:neural-codes-image-retrieval}, we discuss the application of convolutional neural networks for image retrieval before presenting experimental results by Babenko \etal. Finally, we conclude in Section \ref{sec:conclusion}.
+
+% \subsection{Literature Notes}
+
+% Unfortunately, to the best of our knowledge, no survey on image retrieval includes all or most of the approaches presented in this report. However, older surveys may introduce the reader to the field of image retrieval and discuss older techniques inspired by text retrieval (for example \cite{RuiHuangChang:1999}). Therefore, we refer the reader to some of the readings by Zisserman's group (for example \cite{SivicZisserman:2003,PhilbinChumIsardSivicZisserman:2007,ArandjelovicZisserman:2012}) and Schmid's group, especially work involving J{\'e}gou (for example \cite{JegouDouzeSchmidPerez:2010,ToliasAvrithisJegou:2013,JegouZisserman:2014}). Both groups maintain web pages providing datasets and software
+% \footnote{
+    % See \url{http://www.robots.ox.ac.uk/~vgg/software/}, \url{http://lear.inrialpes.fr/software}, \url{http://people.rennes.inria.fr/Herve.Jegou/index.html}.
+    % Note that, at the point of writing, J{\'e}gou is not longer at LEAR INRIA.
+% }.
+% We also want to point the reader to a survey of local descriptors by Mikolajczyk and Schmid \cite{MikolajczykSchmid:2004} and note that their evaluation methodology is implemented in the VLBenchmarks library
+% \footnote{
+    % See \url{http://www.vlfeat.org/benchmarks/}.
+% }.
+
+% In contrast, several recent surveys on convolutional neural networks are available (for example \cite{Bengio:2009,Schmidhuber:2015}) and may introduce the reader to the necessary mathematical background and different applications.
